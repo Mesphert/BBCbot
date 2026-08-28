@@ -75,6 +75,23 @@ def bot_loop():
     # Give FastAPI a moment to start before the first cycle
     time.sleep(3)
 
+    # Warm up Supabase Edge Function — prevents cold start 502 on first cycle
+    logger.info("Warming up Supabase Edge Function...")
+    try:
+        import requests as _req
+        _req.post(
+            config.SUPABASE_FUNCTION_URL,
+            json={"symbol": config.SYMBOL, "interval": "3", "limit": 2},
+            headers={
+                "Content-Type":  "application/json",
+                "Authorization": f"Bearer {config.SUPABASE_ANON_KEY}",
+            },
+            timeout=30,
+        )
+        logger.info("Supabase Edge Function warmed up.")
+    except Exception as e:
+        logger.warning(f"Warmup ping failed (non-critical): {e}")
+
     while True:
         try:
             # Sleep until next 3m candle close
