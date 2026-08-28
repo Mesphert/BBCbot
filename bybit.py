@@ -92,7 +92,7 @@ def _fetch_via_proxy(symbol: str, interval: str,
             config.SUPABASE_FUNCTION_URL,
             json=payload,
             headers=headers,
-            timeout=15,
+            timeout=30,   # 30s to handle Supabase cold starts (~400ms boot)
         )
         resp.raise_for_status()
         return resp.json()
