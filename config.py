@@ -29,6 +29,7 @@ MONGO_DB  = "bybit_bot"   # database name inside Atlas
 # Set on Render: SUPABASE_FUNCTION_URL
 # Format: https://xxxx.supabase.co/functions/v1/bybit-proxy
 SUPABASE_FUNCTION_URL = os.getenv("SUPABASE_FUNCTION_URL")
+SUPABASE_ANON_KEY     = os.getenv("SUPABASE_ANON_KEY")
 
 BYBIT_API_KEY    = os.getenv("BYBIT_API_KEY")    # used for private endpoints
 BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET") # used for HMAC signature
