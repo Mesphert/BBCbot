@@ -31,6 +31,13 @@ MONGO_DB  = "bybit_bot"   # database name inside Atlas
 SUPABASE_FUNCTION_URL = os.getenv("SUPABASE_FUNCTION_URL")
 SUPABASE_ANON_KEY     = os.getenv("SUPABASE_ANON_KEY")
 
+# config.py - Add these
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
+SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL")
+
+
 BYBIT_API_KEY    = os.getenv("BYBIT_API_KEY")    # used for private endpoints
 BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET") # used for HMAC signature
 
