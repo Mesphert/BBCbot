@@ -84,9 +84,14 @@ def _fetch_via_proxy(symbol: str, interval: str,
     }
 
     try:
+        headers = {
+            "Content-Type":  "application/json",
+            "Authorization": f"Bearer {config.SUPABASE_ANON_KEY}",
+        }
         resp = requests.post(
             config.SUPABASE_FUNCTION_URL,
             json=payload,
+            headers=headers,
             timeout=15,
         )
         resp.raise_for_status()
