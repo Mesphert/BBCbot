@@ -125,7 +125,7 @@ def fetch_candles(symbol: str, interval: str,
 
     # Check for proxy-level error (Worker catch block)
     if "error" in data and "retCode" not in data:
-        logger.error(f"Cloudflare Worker error [{interval}]: {data.get('error')}")
+        logger.error(f"Cloudflare Worker error [{interval}]: {data}")
         return None
 
     if data.get("retCode") != 0:
