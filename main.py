@@ -34,7 +34,7 @@ from fastapi.responses import JSONResponse
 
 import config
 import mongo as neon
-import bybit
+import binance as bybit
 import detector
 import notifier
 import scheduler
@@ -68,12 +68,13 @@ def bot_loop():
     """
     Main bot loop. Runs in a background thread.
     Wakes every 3 minutes, processes closing TFs, detects patterns.
-    All state read from / written to Neon — no in-memory state.
+    All state read from / written to MongoDB — no in-memory state.
     """
     logger.info("Bot loop started.")
 
     # Give FastAPI a moment to start before the first cycle
     time.sleep(3)
+    logger.info("Bot loop ready — entering main cycle.")
 
 
 
@@ -141,8 +142,9 @@ def bot_loop():
 
         except Exception as e:
             logger.error(f"Bot loop error: {e}", exc_info=True)
-            # Sleep 60s on error to avoid hammering Bybit/Neon
+            logger.error("Bot loop sleeping 60s after error before retrying...")
             time.sleep(60)
+            logger.info("Bot loop resuming after error sleep.")
 
 
 # ------------------------------------------------------------------
@@ -174,9 +176,11 @@ app = FastAPI(
 
 
 @app.get("/")
+@app.head("/")
 def health():
     """
     Health check endpoint.
+    Handles both GET and HEAD requests — Render uses HEAD for health checks.
     Cron-job.org pings this every 10 minutes to keep Render alive.
     """
     return {"status": "ok", "symbol": config.SYMBOL}
