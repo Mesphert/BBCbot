@@ -76,17 +76,14 @@ def _fetch_via_proxy(symbol: str, interval: str,
         logger.error("CLOUDFLARE_WORKER_URL not set in environment variables.")
         return None
 
-    payload = {
-        "symbol":   symbol,
-        "interval": interval,
-        "limit":    limit,
-    }
-
     try:
-        resp = requests.post(
+        resp = requests.get(
             config.CLOUDFLARE_WORKER_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"},
+            params={
+                "symbol":   symbol,
+                "interval": interval,
+                "limit":    limit,
+            },
             timeout=15,
         )
         resp.raise_for_status()
