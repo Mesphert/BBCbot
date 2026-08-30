@@ -1,99 +1,80 @@
 """
-notifier.py — Sends signal alerts to a Telegram channel via Bot API.
+scheduler.py — 3-minute heartbeat scheduler.
 
-Simple direct approach:
-  POST https://api.telegram.org/bot{TOKEN}/sendMessage
-  → message appears in your channel instantly
+The 3m candle is the heartbeat — the bot wakes every 3 minutes and checks
+which higher timeframes are also closing at that moment.
 
-No third-party services. One HTTP request per signal.
+Binance interval strings: "3m","5m","15m","30m","1h","4h","1d","1w"
 """
 
 import logging
-import requests
+import time
+from datetime import datetime, timezone, timedelta
 from typing import List
 
 import config
-from detector import Signal
 
 logger = logging.getLogger(__name__)
 
-TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
-# Event emojis
-EVENT_EMOJI = {
-    "BOS":   "🔵",
-    "CHOCH": "🟡",
-    "CRT":   "🟣",
-}
-
-DIRECTION_EMOJI = {
-    "bullish": "📈",
-    "bearish": "📉",
-}
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _build_message(sig: Signal) -> str:
-    """Build a structured HTML Telegram message for one signal."""
-    event_emoji = EVENT_EMOJI.get(sig.event, "🔔")
-    dir_emoji   = DIRECTION_EMOJI.get(sig.direction, "")
-    tf_label    = config.TF_LABELS.get(sig.timeframe, sig.timeframe)
-    price_fmt   = f"${sig.price:,.2f}"
-    time_fmt    = sig.candle_time.strftime("%Y-%m-%d %H:%M UTC")
-    session     = sig.session or "—"
-    direction   = sig.direction.capitalize()
+def next_3m_close(now: datetime = None) -> datetime:
+    """Calculate the next 3-minute candle close time (UTC)."""
+    if now is None:
+        now = _now_utc()
 
-    return (
-        f"{event_emoji} <b>SIGNAL | {sig.symbol}</b>\n"
-        f"\n"
-        f"📊 <b>Pattern</b>    : {sig.event} {direction}\n"
-        f"⏱ <b>Timeframe</b>  : {tf_label}\n"
-        f"💰 <b>Price</b>      : {price_fmt}\n"
-        f"🕐 <b>Session</b>    : {session}\n"
-        f"📅 <b>Time</b>       : {time_fmt}\n"
-        f"{dir_emoji} <b>Detail</b>     : {sig.description}\n"
+    total_seconds  = now.minute * 60 + now.second
+    period_seconds = 3 * 60
+    elapsed        = total_seconds % period_seconds
+    remaining      = period_seconds - elapsed
+
+    return now + timedelta(seconds=remaining + 1)
+
+
+def which_tfs_closing(now: datetime) -> List[str]:
+    """
+    Return which configured timeframes are closing at this UTC datetime.
+    Uses TF_MINUTES from config — works with any interval string format.
+    """
+    closing        = []
+    minute_of_day  = now.hour * 60 + now.minute
+    day_of_week    = now.weekday()   # 0=Monday
+
+    for interval in config.TIMEFRAMES:
+        tf_mins = config.TF_MINUTES.get(interval)
+        if tf_mins is None:
+            continue
+
+        if interval == "1d":
+            if now.hour == 0 and now.minute == 0:
+                closing.append(interval)
+
+        elif interval == "1w":
+            if day_of_week == 0 and now.hour == 0 and now.minute == 0:
+                closing.append(interval)
+
+        else:
+            if tf_mins > 0 and minute_of_day % tf_mins == 0:
+                closing.append(interval)
+
+    return closing
+
+
+def sleep_until_next_close():
+    """Block until the next 3m candle close. Returns wake UTC datetime."""
+    now       = _now_utc()
+    wake_time = next_3m_close(now)
+    sleep_secs = (wake_time - now).total_seconds()
+
+    logger.info(
+        f"Sleeping {sleep_secs:.0f}s until next 3m close "
+        f"at {wake_time.strftime('%H:%M:%S')} UTC"
     )
+    time.sleep(max(0, sleep_secs))
 
-
-def send_signal(sig: Signal) -> bool:
-    """
-    Send one signal to the Telegram channel.
-    Returns True on success, False on failure.
-    """
-    if not config.TELEGRAM_TOKEN or not config.TELEGRAM_CHANNEL:
-        logger.warning("Telegram credentials not set — skipping notification.")
-        return False
-
-    url     = TELEGRAM_API.format(token=config.TELEGRAM_TOKEN)
-    message = _build_message(sig)
-
-    payload = {
-        "chat_id":    config.TELEGRAM_CHANNEL,
-        "text":       message,
-        "parse_mode": "HTML",
-    }
-
-    try:
-        resp = requests.post(url, json=payload, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-
-        if not data.get("ok"):
-            logger.error(f"Telegram API error: {data.get('description')}")
-            return False
-
-        tf_label = config.TF_LABELS.get(sig.timeframe, sig.timeframe)
-        logger.info(
-            f"Telegram sent | {sig.symbol} {tf_label} | "
-            f"{sig.event} {sig.direction}"
-        )
-        return True
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Telegram request failed: {e}")
-        return False
-
-
-def send_signals(signals: List[Signal]):
-    """Send Telegram notifications for a list of signals."""
-    for sig in signals:
-        send_signal(sig)
+    woke_at = _now_utc()
+    logger.info(f"Woke up at {woke_at.strftime('%H:%M:%S')} UTC")
+    return woke_at
