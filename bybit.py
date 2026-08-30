@@ -125,6 +125,11 @@ def fetch_candles(symbol: str, interval: str,
     if data is None:
         return None
 
+    # Check for proxy-level error (Worker catch block)
+    if "error" in data and "retCode" not in data:
+        logger.error(f"Cloudflare Worker error [{interval}]: {data.get('error')}")
+        return None
+
     if data.get("retCode") != 0:
         logger.error(
             f"Bybit API error [{interval}]: "
