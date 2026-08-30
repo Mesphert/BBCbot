@@ -21,7 +21,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-BINANCE_KLINE_URL = "https://fapi.binance.com/fapi/v1/klines"
+BINANCE_KLINE_URL = "https://data.binance.com/fapi/v1/klines"
 
 
 def fetch_candles(symbol: str, interval: str,
